@@ -29,7 +29,7 @@
 
     If a <cmd> does not have a :<command>, then it will expand into
 
-        {<stuff>}
+        {<stuff>;}
 
     Effectively, the outer part of the comment is replaced with braces, turning
     an inert comment into an executable block. If a <condition> was included,
@@ -322,6 +322,11 @@ static void
 stuff()
 {
     int c, left = '{', paren = 0;
+/*
+    don't emit space character before <stuff>
+*/
+    get(false);
+		 
     for (;;) {
         while (peek() == '*') {
             get(false);
