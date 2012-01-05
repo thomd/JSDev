@@ -4,11 +4,11 @@
 
     Public Domain
 
-    JSPrep is a simple JavaScript preprocessor. It implements a basic macro
+    JSDev is a simple JavaScript preprocessor. It implements a basic macro
     language that is written in the form of comments. These comments are
-    normally ignored, and will be removed by JSMin. But JSPrep will activate
+    normally ignored, and will be removed by JSMin. But JSDev will activate
     these comments, replacing them with executable forms that can be used to do
-    debugging, testing, logging, or tracing. JSPrep scans a source looking for
+    debugging, testing, logging, or tracing. JSDev scans a source looking for
     and replacing patterns. A pattern is a slashstar comment containing a
     command and some stuff, and optionally a condition wrapped in parens.
     There must be no space between the slashstar and the <cmd>.
@@ -58,7 +58,7 @@
 
     Sample command line:
 
-        jsprep debug log:console.log alarm:alert -comment "Devel Edition"
+        jsdev debug log:console.log alarm:alert -comment "Devel Edition"
 
     That will enable
 */
@@ -193,7 +193,7 @@ get(int echo)
     } else {
         if (c == '\n' && !cr) {
             line_nr += 1;
-        } 
+        }
         cr = false;
     }
     if (echo) {
