@@ -1,6 +1,6 @@
 /*  jsdev.c
     Douglas Crockford
-    2012-01-05
+    2012-01-06
 
     Public Domain
 
@@ -322,6 +322,9 @@ static void
 stuff()
 {
     int c, left = '{', paren = 0;
+    while (peek() == ' ') {
+        get(false);
+    }
     for (;;) {
         while (peek() == '*') {
             get(false);
@@ -361,6 +364,7 @@ expand(int cmd_nr)
     if (c == '(') {
         emits("if ");
         condition();
+        emit(' ');
     }
     emit('{');
     if (commands[cmd_nr][0]) {
