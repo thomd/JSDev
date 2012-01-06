@@ -295,6 +295,7 @@ condition()
         } else if (c == ')' || c == '}' || c == ']') {
             paren -= 1;
             if (paren == 0) {
+                emit(' ');
                 return;
             }
         } else if (c == EOF) {
