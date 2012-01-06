@@ -18,19 +18,19 @@ these forms:
 
     /*<tag>(<condition>) <stuff>*/
 
-There can be no space between the /* and the tag. There can be no space between
-the tag and the (. The content of tagged comment may not include comments, nor
-can it contain strings or regular expression literals that look like comments.
-So, write
+There can be no space between the /* and the <tag>. There can be no space
+between the <tag> and the (. The content of tagged comment may not include
+comments, nor can it contain strings or regular expression literals that
+contain */. So, write
 
-    /*debug(/\/*/.test(variable))
-        console.log("/* test");
+    /*debug(/[a-z][a-z0-9]*/.test(variable))
+        console.log("*/ test");
     */
 
 as
 
-    /*debug(/[\]*/.test(variable))
-        console.log("/\* test");
+    /*debug(/[a-z][a-z0-9]*(?:)/.test(variable))
+        console.log("*\/ test");
     */
 
 On the command line, list the names of the tags that should be activated.
