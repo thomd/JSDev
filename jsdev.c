@@ -4,30 +4,31 @@
 
     Public Domain
 
-    JSDev is a simple JavaScript preprocessor. It implements a basic macro
-    language that is written in the form of comments. These comments are
+    JSDev is a simple JavaScript preprocessor. It implements a tiny macro
+    language that is written in the form of tagged comments. These comments are
     normally ignored, and will be removed by JSMin. But JSDev will activate
     these comments, replacing them with executable forms that can be used to do
     debugging, testing, logging, or tracing. JSDev scans a source looking for
     and replacing patterns. A pattern is a slashstar comment containing a
-    command and some stuff, and optionally a condition wrapped in parens.
-    There must be no space between the slashstar and the <cmd>.
+    tag and some stuff, and optionally a condition wrapped in parens.
+    There must be no space between the slashstar and the <tag>.
 */
-        /*<cmd> <stuff>*/
-        /*<cmd>(<condition>) <stuff>*/
+        /*<tag> <stuff>*/
+        /*<tag>(<condition>) <stuff>*/
 /*
-    The command line will contain a list of <cmd>s, each of which can
-    optionally be followed by a colon and <command>. There must not be
+    The command line will contain a list of <tag> names, each of which can
+    optionally be followed by a colon and <method> name. There must not be
     any spaces around the colon.
 
-    A <cmd> may contain any short sequence of ASCII letters, digits,
-    underbar (_), dollar ($), and period(.). The active <cmd> strings are
-    declared in the command line. All <cmd>s that are not declared are ignored.
+    A <tag> may contain any short sequence of ASCII letters, digits,
+    underbar (_), dollar ($), and period(.). The active <tag> strings are
+    declared in the method line. All <tag>s that are not declared in the
+    command line are ignored.
 
-    The <stuff> may not include a regular expression literal or a comment or
-    a string or regexp containing slashstar.
+    The <condition> and <stuff> may not include a string or regexp containing
+    starslash, or a comment.
 
-    If a <cmd> does not have a :<command>, then it will expand into
+    If a <tag> does not have a :<method>, then it will expand into
 
         {<stuff>}
 
@@ -37,26 +38,25 @@
 
         if (<condition>) {<stuff>}
 
-    Note that there can be no space between the <cmd> and the paren that
+    Note that there can be no space between the <tag> and the paren that
     encloses the <condition>. If there is a space, then everything is <stuff>.
 
-    If <cmd> was declared with :<command>, then it will expand into
+    If <tag> was declared with :<method>, then it will expand into
 
-        {<command>(<stuff>);}
+        {<method>(<stuff>);}
 
-    A function call is constructed, replacing the <cmd> with <command>, and
-    using the <stuff> as the arguments. If a condition was included, it will
-    expand into
+    A function call is constructed, invoking the <method>, and using the
+    <stuff> as the arguments. If a condition was included, it will expand into
 
-        if (<condition>) {<command>(<stuff>);}
+        if (<condition>) {<method>(<stuff>);}
 
-    Also, a command line can contain a comment.
+    Also, a method line can contain a comment.
 
         -comment <comment>
 
-            A string that will be prepended to the file as a comment.
+            A string that will be prepended to the output as a comment.
 
-    Sample command line:
+    Sample method line:
 
         jsdev debug log:console.log alarm:alert -comment "Devel Edition"
 
@@ -97,18 +97,19 @@
 #include <stdio.h>
 #include <string.h>
 
-#define false          0
-#define true           1
-#define MAX_CMD_LENGTH 80
-#define MAX_NR_CMDS    100
+#define FALSE          0
+#define MAX_NR_TAGS    100
+#define MAX_TAG_LENGTH 80
+#define TRUE           1
 
-static char cmd                  [MAX_CMD_LENGTH + 1];
-static char cmds    [MAX_NR_CMDS][MAX_CMD_LENGTH + 1];
-static char commands[MAX_NR_CMDS][MAX_CMD_LENGTH + 1];
 static int  cr;
 static int  line_nr;
-static int  nr_cmds;
+static int  nr_tags;
 static int  preview = 0;
+
+static char methods[MAX_NR_TAGS][MAX_TAG_LENGTH + 1];
+static char tag                 [MAX_TAG_LENGTH + 1];
+static char tags   [MAX_NR_TAGS][MAX_TAG_LENGTH + 1];
 
 static void
 error(char* message)
@@ -117,7 +118,7 @@ error(char* message)
     if (line_nr) {
         fprintf(stderr, "%d. ", line_nr);
     } else {
-        fputs("bad command line ", stderr);
+        fputs("bad method line ", stderr);
     }
     fputs(message, stderr);
     fputs("\r\n", stderr);
@@ -129,7 +130,7 @@ static int
 is_alphanum(char c)
 {
 /*
-    Return true if the character is a letter, digit, underscore,
+    Return TRUE if the character is a letter, digit, underscore,
     dollar sign, or period.
 */
     return ((c >= 'a' && c <= 'z') ||
@@ -167,7 +168,10 @@ emits(char* s)
 static int
 peek()
 {
-    return preview = preview ? preview : fgetc(stdin);
+    if (!preview) {
+        preview = fgetc(stdin);
+    }
+    return preview;
 }
 
 
@@ -175,8 +179,8 @@ static int
 get(int echo)
 {
 /*
-    Return the next character from the input. If the echo argument is
-    true, then the character will also be emitted.
+    Return the next character from the input. If the echo argument is TRUE,
+    then the character will also be emitted.
 */
     int c;
     if (preview) {
@@ -188,13 +192,13 @@ get(int echo)
     if (c <= 0) {
         return EOF;
     } else if (c == '\r') {
-        cr = true;
+        cr = TRUE;
         line_nr += 1;
     } else {
         if (c == '\n' && !cr) {
             line_nr += 1;
         }
-        cr = false;
+        cr = FALSE;
     }
     if (echo) {
         emit(c);
@@ -215,12 +219,12 @@ string(int quote, int in_comment)
 {
     int c, was = line_nr;
     for (;;) {
-        c = get(true);
+        c = get(TRUE);
         if (c == quote) {
             return;
         }
         if (c == '\\') {
-            c = get(true);
+            c = get(TRUE);
         }
         if (in_comment && c == '*' && peek() == '/') {
             error("unexpected close comment in string.");
@@ -248,15 +252,15 @@ regexp(int in_comment)
 {
     int c, was = line_nr;
     for (;;) {
-        c = get(true);
+        c = get(TRUE);
         if (c == '[') {
             for (;;) {
-                c = get(true);
+                c = get(TRUE);
                 if (c == ']') {
                     break;
                 }
                 if (c == '\\') {
-                    c = get(true);
+                    c = get(TRUE);
                 }
                 if (in_comment && c == '*' && peek() == '/') {
                     error("unexpected close comment in regexp.");
@@ -271,7 +275,7 @@ regexp(int in_comment)
             }
             return;
         } else if (c =='\\') {
-            c = get(true);
+            c = get(TRUE);
         }
         if (in_comment && c == '*' && peek() == '/') {
             error("unexpected comment.");
@@ -289,7 +293,7 @@ condition()
 {
     int c, left, paren = 0;
     for (;;) {
-        c = get(true);
+        c = get(TRUE);
         if (c == '(' || c == '{' || c == '[') {
             paren += 1;
         } else if (c == ')' || c == '}' || c == ']') {
@@ -300,13 +304,13 @@ condition()
         } else if (c == EOF) {
             error("Unterminated condition.");
         } else if (c == '\'' || c == '"' || c == '`') {
-            string(c, true);
+            string(c, TRUE);
         } else if (c == '/') {
             if (peek() == '/' || peek() == '*') {
                 error("unexpected comment.");
             }
             if (pre_regexp(left)) {
-                regexp(true);
+                regexp(TRUE);
             }
         } else if (c == '*' && peek() == '/') {
             error("unclosed condition.");
@@ -323,28 +327,28 @@ stuff()
 {
     int c, left = '{', paren = 0;
     while (peek() == ' ') {
-        get(false);
+        get(FALSE);
     }
     for (;;) {
         while (peek() == '*') {
-            get(false);
+            get(FALSE);
             if (peek() == '/') {
-                get(false);
+                get(FALSE);
                 return;
             }
             emit('*');
         }
-        c = get(true);
+        c = get(TRUE);
         if (c == EOF) {
             error("Unterminated stuff.");
         } else if (c == '\'' || c == '"' || c == '`') {
-            string(c, true);
+            string(c, TRUE);
         } else if (c == '/') {
             if (peek() == '/' || peek() == '*') {
                 error("unexpected comment.");
             }
             if (pre_regexp(left)) {
-                regexp(true);
+                regexp(TRUE);
             }
         }
         if (c > ' ') {
@@ -355,10 +359,10 @@ stuff()
 
 
 static void
-expand(int cmd_nr)
+expand(int tag_nr)
 {
     int c;
-    int cond = false;
+    int cond = FALSE;
 
     c = peek();
     if (c == '(') {
@@ -367,26 +371,26 @@ expand(int cmd_nr)
         emit(' ');
     }
     emit('{');
-    if (commands[cmd_nr][0]) {
-        emits(commands[cmd_nr]);
+    if (methods[tag_nr][0]) {
+        emits(methods[tag_nr]);
         emit('(');
         stuff();
-        emit(')');
+        emits(");}");
     } else {
         stuff();
+        emit('}');
     }
-    emits(";}");
 }
 
 
 static int
 match()
 {
-    int cmd_nr;
+    int tag_nr;
 
-    for (cmd_nr = 0; cmd_nr < nr_cmds; cmd_nr += 1) {
-        if (strcmp(cmd, cmds[cmd_nr]) == 0) {
-            return cmd_nr;
+    for (tag_nr = 0; tag_nr < nr_tags; tag_nr += 1) {
+        if (strcmp(tag, tags[tag_nr]) == 0) {
+            return tag_nr;
         }
     }
     return EOF;
@@ -401,13 +405,13 @@ process()
 */
     int c, i, left = 0;
     line_nr = 1;
-    c = get(false);
+    c = get(FALSE);
     for (;;) {
         if (c == EOF) {
             break;
         } else if (c == '\'' || c == '"' || c == '`') {
             emit(c);
-            string(c, false);
+            string(c, FALSE);
             c = 0;
 /*
     The most complicated case is the slash. It can mean division or a regexp
@@ -421,63 +425,62 @@ process()
             if (peek() == '/') {
                 emit('/');
                 for (;;) {
-                    c = get(true);
+                    c = get(TRUE);
                     if (c == '\n' || c == '\r' || c == EOF) {
                         break;
                     }
                 }
-                c = get(false);
+                c = get(FALSE);
 /*
-    The first component of a slash star comment might be the cmd.
+    The first component of a slash star comment might be the tag.
 */
             } else {
                 if (peek() == '*') {
-                    get(false);
-                    for (i = 0; i < MAX_CMD_LENGTH; i += 1) {
-                        c = get(false);
+                    get(FALSE);
+                    for (i = 0; i < MAX_TAG_LENGTH; i += 1) {
+                        c = get(FALSE);
                         if (!is_alphanum(c)) {
                             break;
                         }
-                        cmd[i] = c;
+                        tag[i] = c;
                     }
-                    cmd[i] = 0;
+                    tag[i] = 0;
                     unget(c);
 /*
-    Did the cmd matches something?.
+    Did the tag matches something?.
 */
                     i = i == 0 ? -1 : match();
                     if (i >= 0) {
                         expand(i);
-                        c = get(false);
+                        c = get(FALSE);
                     } else {
 /*
-    If the cmd didn't match, then echo the comment.
+    If the tag didn't match, then echo the comment.
 */
                         emits("/*");
-                        emits(cmd);
+                        emits(tag);
                         for (;;) {
                             if (c == EOF) {
                                 error("unterminated comment.");
                             }
                             if (c == '/') {
-                                c = get(true);
-                                if (c == '*') {
+                                c = get(TRUE);
+                                if (c == '*' || c == '/') {
                                     error("nested comment.");
                                 }
                             } else if (c == '*') {
-                                c = get(true);
+                                c = get(TRUE);
                                 if (c == '/') {
                                     break;
                                 }
                             } else {
-                                c = get(true);
+                                c = get(TRUE);
                             }
                         }
-                        c = get(false);
+                        c = get(FALSE);
                     }
                 } else {
                     emit('/');
-                    if (pre_regexp(left)) {
 /*
     We are looking at a single slash. Is it a division operator, or is it the
     start of a regexp literal? If is not possible to tell for sure without doing
@@ -485,14 +488,15 @@ process()
     we are adopting the convention that a regexp literal must have one of a
     small set of characters to its left.
 */
-                        regexp(false);
+                    if (pre_regexp(left)) {
+                        regexp(FALSE);
                     } else {
 /*
     Or maybe the slash was a division operator.
 */
                     }
                     left = '/';
-                    c = get(false);
+                    c = get(FALSE);
                 }
             }
         } else {
@@ -505,7 +509,7 @@ process()
             if (c > ' ') {
                 left = c;
             }
-            c = get(false);
+            c = get(FALSE);
         }
     }
 }
@@ -514,49 +518,49 @@ process()
 extern int
 main(int argc, char* argv[])
 {
-    int c, comment = false, i, j, k;
-    cr = false;
+    int c, comment = FALSE, i, j, k;
+    cr = FALSE;
     line_nr = 0;
-    nr_cmds = 0;
+    nr_tags = 0;
     for (i = 1; i < argc; i += 1) {
         if (comment) {
-            comment = false;
+            comment = FALSE;
             emits("// ");
             emits(argv[i]);
             emit('\n');
         } else if (strcmp(argv[i], "-comment") == 0) {
-            comment = true;
+            comment = TRUE;
         } else {
-            for (j = 0; j < MAX_CMD_LENGTH; j += 1) {
+            for (j = 0; j < MAX_TAG_LENGTH; j += 1) {
                 c = argv[i][j];
                 if (!is_alphanum(c)) {
                     break;
                 }
-                cmds[nr_cmds][j] = c;
+                tags[nr_tags][j] = c;
             }
             if (j == 0) {
                 error(argv[i]);
             }
-            cmds[nr_cmds][j] = 0;
+            tags[nr_tags][j] = 0;
             if (c == 0) {
-                commands[nr_cmds][0] = 0;
+                methods[nr_tags][0] = 0;
             } else if (c == ':') {
                 j += 1;
-                for (k = 0; k < MAX_CMD_LENGTH; k += 1) {
+                for (k = 0; k < MAX_TAG_LENGTH; k += 1) {
                     c = argv[i][j + k];
                     if (!is_alphanum(c)) {
                         break;
                     }
-                    commands[nr_cmds][k] = c;
+                    methods[nr_tags][k] = c;
                 }
-                commands[nr_cmds][k] = 0;
+                methods[nr_tags][k] = 0;
                 if (k == 0 || c != 0) {
                     error(argv[i]);
                 }
             } else {
                 error(argv[i]);
             }
-            nr_cmds += 1;
+            nr_tags += 1;
         }
     }
     process();
