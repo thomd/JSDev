@@ -334,6 +334,9 @@ stuff()
             get(FALSE);
             if (peek() == '/') {
                 get(FALSE);
+                if (paren > 0) {
+                    error("Unbalanced stuff");
+                }
                 return;
             }
             emit('*');
@@ -343,6 +346,13 @@ stuff()
             error("Unterminated stuff.");
         } else if (c == '\'' || c == '"' || c == '`') {
             string(c, TRUE);
+        } else if (c == '(' || c == '{' || c == '[') {
+            paren += 1;
+        } else if (c == ')' || c == '}' || c == ']') {
+            paren -= 1;
+            if (paren < 0) {
+                error("Unbalanced stuff");
+            }
         } else if (c == '/') {
             if (peek() == '/' || peek() == '*') {
                 error("unexpected comment.");
@@ -362,7 +372,6 @@ static void
 expand(int tag_nr)
 {
     int c;
-    int cond = FALSE;
 
     c = peek();
     if (c == '(') {
