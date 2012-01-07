@@ -127,7 +127,7 @@ error(char* message)
 
 
 static int
-is_alphanum(char c)
+is_alphanum(int c)
 {
 /*
     Return TRUE if the character is a letter, digit, underscore,
@@ -291,7 +291,7 @@ regexp(int in_comment)
 static void
 condition()
 {
-    int c, left, paren = 0;
+    int c, left = '{', paren = 0;
     for (;;) {
         c = get(TRUE);
         if (c == '(' || c == '{' || c == '[') {
@@ -451,7 +451,7 @@ process()
                         if (!is_alphanum(c)) {
                             break;
                         }
-                        tag[i] = c;
+                        tag[i] = (char)c;
                     }
                     tag[i] = 0;
                     unget(c);
@@ -527,7 +527,7 @@ process()
 extern int
 main(int argc, char* argv[])
 {
-    int c, comment = FALSE, i, j, k;
+    int c = EOF, comment = FALSE, i, j, k;
     cr = FALSE;
     line_nr = 0;
     nr_tags = 0;
@@ -545,7 +545,7 @@ main(int argc, char* argv[])
                 if (!is_alphanum(c)) {
                     break;
                 }
-                tags[nr_tags][j] = c;
+                tags[nr_tags][j] = (char)c;
             }
             if (j == 0) {
                 error(argv[i]);
@@ -560,7 +560,7 @@ main(int argc, char* argv[])
                     if (!is_alphanum(c)) {
                         break;
                     }
-                    methods[nr_tags][k] = c;
+                    methods[nr_tags][k] = (char)c;
                 }
                 methods[nr_tags][k] = 0;
                 if (k == 0 || c != 0) {
