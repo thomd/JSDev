@@ -456,7 +456,7 @@ process()
                     tag[i] = 0;
                     unget(c);
 /*
-    Did the tag matches something?.
+    Did the tag matches something?
 */
                     i = i == 0 ? -1 : match();
                     if (i >= 0) {
