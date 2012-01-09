@@ -12,7 +12,7 @@ into a source file. The scaffolding is removed by minification, but is activated
 by JSDev.
 
 JSDev is a filter that takes a source file and looks for tagged comments in
-either ofthese forms:
+either of these forms:
 
     /*<tag> <stuff>*/
 
@@ -42,7 +42,7 @@ name. There can be no spaces around the :.
     tag form        {               }
     method form     {<method>(      );}
 
-If a condition was included, then the replacement will be preceeded with an
+If a condition was included, then the replacement will be preceded with an
 if statement.
 
 The implementation in C obtains the input from stdin, and provides the result
