@@ -274,7 +274,7 @@ regexp(int in_comment)
                 error("unexpected comment.");
             }
             return;
-        } else if (c =='\\') {
+        } else if (c == '\\') {
             c = get(TRUE);
         }
         if (in_comment && c == '*' && peek() == '/') {
@@ -499,10 +499,6 @@ process()
 */
                     if (pre_regexp(left)) {
                         regexp(FALSE);
-                    } else {
-/*
-    Or maybe the slash was a division operator.
-*/
                     }
                     left = '/';
                     c = get(FALSE);
