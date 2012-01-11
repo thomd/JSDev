@@ -127,7 +127,7 @@ error(char* message)
 
 
 static int
-is_alphanum(char c)
+is_alphanum(int c)
 {
 /*
     Return TRUE if the character is a letter, digit, underscore,
@@ -274,7 +274,7 @@ regexp(int in_comment)
                 error("unexpected comment.");
             }
             return;
-        } else if (c =='\\') {
+        } else if (c == '\\') {
             c = get(TRUE);
         }
         if (in_comment && c == '*' && peek() == '/') {
@@ -291,7 +291,7 @@ regexp(int in_comment)
 static void
 condition()
 {
-    int c, left, paren = 0;
+    int c, left = '{', paren = 0;
     for (;;) {
         c = get(TRUE);
         if (c == '(' || c == '{' || c == '[') {
@@ -335,6 +335,9 @@ stuff()
             get(FALSE);
             if (peek() == '/') {
                 get(FALSE);
+                if (paren > 0) {
+                    error("Unbalanced stuff");
+                }
                 return;
             }
             emit('*');
@@ -344,6 +347,13 @@ stuff()
             error("Unterminated stuff.");
         } else if (c == '\'' || c == '"' || c == '`') {
             string(c, TRUE);
+        } else if (c == '(' || c == '{' || c == '[') {
+            paren += 1;
+        } else if (c == ')' || c == '}' || c == ']') {
+            paren -= 1;
+            if (paren < 0) {
+                error("Unbalanced stuff");
+            }
         } else if (c == '/') {
             if (peek() == '/' || peek() == '*') {
                 error("unexpected comment.");
@@ -363,7 +373,6 @@ static void
 expand(int tag_nr)
 {
     int c;
-    int cond = FALSE;
 
     c = peek();
     if (c == '(') {
@@ -443,12 +452,12 @@ process()
                         if (!is_alphanum(c)) {
                             break;
                         }
-                        tag[i] = c;
+                        tag[i] = (char)c;
                     }
                     tag[i] = 0;
                     unget(c);
 /*
-    Did the tag matches something?.
+    Did the tag match something?
 */
                     i = i == 0 ? -1 : match();
                     if (i >= 0) {
@@ -491,10 +500,6 @@ process()
 */
                     if (pre_regexp(left)) {
                         regexp(FALSE);
-                    } else {
-/*
-    Or maybe the slash was a division operator.
-*/
                     }
                     left = '/';
                     c = get(FALSE);
@@ -519,7 +524,7 @@ process()
 extern int
 main(int argc, char* argv[])
 {
-    int c, comment = FALSE, i, j, k;
+    int c = EOF, comment = FALSE, i, j, k;
     cr = FALSE;
     line_nr = 0;
     nr_tags = 0;
@@ -537,7 +542,7 @@ main(int argc, char* argv[])
                 if (!is_alphanum(c)) {
                     break;
                 }
-                tags[nr_tags][j] = c;
+                tags[nr_tags][j] = (char)c;
             }
             if (j == 0) {
                 error(argv[i]);
@@ -552,7 +557,7 @@ main(int argc, char* argv[])
                     if (!is_alphanum(c)) {
                         break;
                     }
-                    methods[nr_tags][k] = c;
+                    methods[nr_tags][k] = (char)c;
                 }
                 methods[nr_tags][k] = 0;
                 if (k == 0 || c != 0) {
